@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31613.86
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SQLServerEx", "SQLServerEx\SQLServerEx.csproj", "{075B5F0E-0061-4A84-9D3C-6AE74F695E44}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StoredProcedures", "StoredProcedures\StoredProcedures.csproj", "{28FFA5B7-A09D-4E0E-8507-45AFED2206C6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{075B5F0E-0061-4A84-9D3C-6AE74F695E44}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{075B5F0E-0061-4A84-9D3C-6AE74F695E44}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{075B5F0E-0061-4A84-9D3C-6AE74F695E44}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{075B5F0E-0061-4A84-9D3C-6AE74F695E44}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28FFA5B7-A09D-4E0E-8507-45AFED2206C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28FFA5B7-A09D-4E0E-8507-45AFED2206C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28FFA5B7-A09D-4E0E-8507-45AFED2206C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28FFA5B7-A09D-4E0E-8507-45AFED2206C6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7413CBE0-D23F-4E0A-AA84-7C9118DA704B}
+	EndGlobalSection
+EndGlobal
